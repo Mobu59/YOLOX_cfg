@@ -270,21 +270,35 @@ def imageflow_demo(predictor, vis_folder, current_time, args):
     else:
         save_path = os.path.join(save_folder, "camera.mp4")
     logger.info(f"video save_path is {save_path}")
+    s_ratio = fps / 10.0
     vid_writer = cv2.VideoWriter(
-        save_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (int(width), int(height))
+        save_path, cv2.VideoWriter_fourcc(*"mp4v"), fps/s_ratio, (int(width), int(height))
+        #save_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (int(width*0.752), int(height*0.69))
     )
-    while True:
+    cnt = 1
+    #while True:
+    keep = []
+    while cnt <= 4000:
         ret_val, frame = cap.read()
+        keep.append(frame)
         if ret_val:
-            outputs, img_info = predictor.inference(frame)
-            result_frame = predictor.visual(outputs[0], img_info, predictor.confthre)
-            if args.save_result:
-                vid_writer.write(result_frame)
+            if cnt % 5 == 0: 
+            #h, w, _ = frame.shape
+            #frame = frame[:int(h*0.69), :int(w*0.752)]
+                for i, frame in enumerate(keep):
+                    if i == 0 or i == 3:
+                    #if True:
+                        outputs, img_info = predictor.inference(frame)
+                        result_frame = predictor.visual(outputs[0], img_info, predictor.confthre)
+                        if args.save_result:
+                            vid_writer.write(result_frame)
+                keep = []
             #ch = cv2.waitKey(1)
             #if ch == 27 or ch == ord("q") or ch == ord("Q"):
             #    break
         else:
             break
+        cnt += 1        
 
 
 def main(exp, args, test_data, save_path):
@@ -341,7 +355,8 @@ def main(exp, args, test_data, save_path):
     if args.trt:
         assert not args.fuse, "TensorRT model is not support model fusing!"
         #trt_file = os.path.join(file_name, "model_trt.pth")
-        trt_file = '/home/liyang/YOLOX/YOLOX_M/yolox_m_sens_det/model_trt.pth'
+        trt_file = '/home/liyang/cfg_yolox/goods_det/yolox_all/model_trt.pth'
+        trt_file = '/world/data-gpu-94/liyang/cfg_yolox/trained_models/hands_goods_det/yolox_all/model_trt.pth'
         assert os.path.exists(
             trt_file
         ), "TensorRT model is not found!\n Run python3 tools/trt.py first!"
@@ -386,8 +401,25 @@ def main(exp, args, test_data, save_path):
             image_demo(predictor, vis_folder, args.path, current_time,
                     args.save_result, save_txt)
     elif args.demo == "video" or args.demo == "webcam":
-        imageflow_demo(predictor, vis_folder, current_time, args)
-
+        dir = False
+        if dir:
+            video_dir = '/world/data-gpu-94/liyang/shelf_test_imgs/shelf_videos/test_videso'
+            video_dir = '/world/data-gpu-94/liyang/shelf_test_imgs/shelf_videos/20220810_test_videos'
+            #video_dir = '/world/data-gpu-94/liyang/shelf_test_imgs/xlsx_files/20220830_测试视频'
+            video_dir = '/world/data-gpu-94/liyang/shelf_test_imgs/shelf_videos/20220906_test_videos'
+            #video_dir = '/world/data-gpu-94/liyang/shelf_test_imgs/shelf_videos/20220715_videos'
+            #video_dir = '/world/data-gpu-94/liyang/shelf_test_imgs/shelf_videos/20220729_videos'
+            video_lst = os.listdir(video_dir)
+            #random.shuffle(video_lst)
+            #for cnt, i in enumerate(random.shuffle(os.listdir(video_dir))):
+            for cnt, i in enumerate(video_lst):
+                args.path = os.path.join(video_dir, i)
+                imageflow_demo(predictor, vis_folder, current_time, args)
+                if cnt == 7:
+                    exit()
+        else:            
+            imageflow_demo(predictor, vis_folder, current_time, args)
+    
 if __name__ == "__main__":
     os.environ['CUDA_VISIBLE_DEVICES'] = '3'
     args = make_parser().parse_args()
@@ -404,13 +436,42 @@ if __name__ == "__main__":
     #test_data_path = '/world/data-gpu-94/ped_detection_data/bi_headtop/export_data/to_infer_data/foreign_mexico.json'
     #test_data_path = '/world/data-gpu-94/smart_shelf_data/data_v1/test.v1.json'   
     #test_data_path = '/world/data-gpu-94/goods_detection_data/test.v3.json'
-    test_data_path = '/world/data-gpu-94/goods_detection_data/test.v4_20220301.json'
+    test_data_path = "/world/data-gpu-94/goods_detection_data/tupu_retrain_data.json"
+    #test_data_path = '/world/data-gpu-94/liyang/test.json'
+    #test_data_path = "/world/data-gpu-94/goods_detection_data/singleRowShelfData/39-A4FC2-D-1-1.jpg"
     #test_data_path = '/world/data-gpu-94/liyang/full_pedestrian/test.json'
     #test_data_path = '/home/liyang/YOLOX/test_images/1.jpg'
     #test_data_path = '/home/liyang/YOLOX/test_images/test_imgs.json'
     #test_data_path = '/world/data-gpu-94/ped_detection_data/biped_data/part2/data/00381604_15236814955900.7714032098837007.jpg'
     #test_data_path = '/world/data-gpu-94/ped_detection_data/biped.v7.head.mix.shuf.test.json'
-    #test_data_path = '/world/data-gpu-94/ped_detection_data/biped.v8.head.mix.shuf.test.json'
+    test_data_path = '/world/data-gpu-94/liyang/ped_det/biped.ped.test.json'
+    test_data_path = '/world/data-gpu-94/smart_shelf_data/data_v3/test.json'
+    test_data_path = '/world/data-gpu-94/smart_shelf_data/20220708_data.json'
+    test_data_path = '/world/data-gpu-94/liyang/ped_det/biped.ped.test.v3.json'
+    test_data_path = '/world/data-gpu-94/smart_shelf_data/20220715_0729_data.json'
+    test_data_path = '/world/data-gpu-94/sku_data/tupu/tupu.txt'
+    test_data_path = '/world/data-gpu-94/sku_data/tupu/gz/gz.txt'
+    test_data_path = '/world/data-gpu-94/sku_data/tupu/hz_p2/hz_p2.txt'
+    test_data_path = '/world/data-gpu-94/goods_detection_data/badcase/20220804_wtscg.json'
+    test_data_path = '/world/data-gpu-94/smart_shelf_data/data_v3/test.v4.json'
+    #test_data_path = '/world/data-gpu-94/smart_shelf_data/data_v3/data.v5.json'
+    test_data_path = '/world/data-gpu-94/ped_detection_data/biped.v8.head.mix.shuf.test.json'
+    test_data_path = '/world/data-gpu-94/ped_detection_data/bi_headtop/daily_headtop_data/test_data.json'
+    #test_data_path = '/world/data-gpu-94/smart_shelf_data/20220901_data.json'
+    #test_data_path = '/world/data-gpu-94/wyq/mobile_video_data/demo2020/hw_ped/ped3/frame_000650.jpg'
+    #test_data_path = '/world/data-gpu-94/wyq/mobile_video_data/demo2020/hw_ped/ped3.txt'
+    #test_data_path = '/world/data-gpu-94/liyang/misc_projects/star_card_debug.json'
+    #test_data_path = '/world/data-gpu-94/goods_detection_data/badcase/20220804_wtscg/test.json'
+    #test_data_path = '/world/data-gpu-94/goods_detection_data/test.v4_20220301.json'
+    #test_data_path = '/world/data-gpu-94/star_card/stardata/stardata.txt'
+    #test_data_path = '/world/data-gpu-94/star_card/stardata/stardata.shuf.2w.txt'
+    #test_data_path = '/world/data-c4/wash/2022-08-09/5eddb86afaf52c4ca704ea41/data.txt'
+    #test_data_path = '/world/data-gpu-94/liyang/goods_retrain_data/badcase.json'
+    #test_data_path = '/home/liyang/cfg_yolox/tmp.jpg'
+    #test_data_path = '/world/data-gpu-94/wyq/mobile_video_data/demo2020/huigou/pass1.txt'
+    #test_data_path = '/world/data-gpu-94/smart_shelf_data/data_v3/test.json'
+    #test_data_path = '/world/data-gpu-94/smart_shelf_data/20220704_data.json'
+    #args.path = '/world/data-gpu-94/wyq/mobile_video_data/demo2020/pass/过店东.mp4'
     #test_data_path = '/world/data-gpu-94/liyang/vertical_ped_detection/export_data/data_v2/test.v2.json'
     #test_data_path = '/world/data-gpu-94/liyang/vertical_ped_detection/export_data/data_v4/test.v1.json'
     #test_data_path = '/world/data-gpu-94/liyang/test.json'
@@ -425,9 +486,10 @@ if __name__ == "__main__":
     #test_data_path = '/world/data-gpu-94/liyang/pedDetection/Bi/1000_test.json'   
     #test_data_path = '/world/data-gpu-94/liyang/aihuishou_train/ahs_url/ahs_test_imgs/ahs_test_imgs.json'   
     #test_data_path = '/world/data-gpu-94/liyang/pedDetection/Bi/dog_cat_test.json'
-    #test_data_path = '/home/liyang/YOLOX/fruit_003.png'
-    #test_data_path = '/home/liyang/YOLOX/pogc_acd3960b-65f5-4df1-b4aa-613c2c86201b.jpg'
-    save_txt = open('/home/liyang/cfg_yolox/eval/test_b.txt', 'w')
+    args.path = '/world/data-gpu-94/wyq/mobile_video_data/demo2020/hw_ped/ped3.mp4'
+    #args.path = '/world/data-gpu-94/wyq/mobile_video_data/demo2020/huigou/pass3.mp4'
+    #args.path = '/home/liyang/cfg_yolox/865678.mp4'
+    save_txt = open('/home/liyang/cfg_yolox/eval/test_f.txt', 'w')
     #save_txt = None
     exp = get_exp(args.exp_file, args.name)
 

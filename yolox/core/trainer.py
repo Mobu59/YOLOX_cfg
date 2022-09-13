@@ -100,8 +100,8 @@ class Trainer:
             count = 0
             _COLORS = np.array(
                 [
-                    #0.000, 0.447, 0.741,
-                    1.000, 0.000, 0.000,
+                    0.000, 0.447, 0.741,
+                    #1.000, 0.000, 0.000,
                     0.850, 0.325, 0.098,
                     0.929, 0.694, 0.125,
                     0.494, 0.184, 0.556,
@@ -188,6 +188,7 @@ class Trainer:
                 for img, target in zip(inps, targets):
                     count += 1
                     img = img.cpu().numpy().transpose(1, 2, 0)
+                    #img = img.cpu().numpy().transpose(1, 2, 0) * 128.0 + 127.0
                     target = target.cpu().numpy()
                     image = img.copy()
                     boxes = target
@@ -208,6 +209,7 @@ class Trainer:
                         save_image = cv2.rectangle(image, (int(x0), int(y0)),
                                 (int(x1), int(y1)), color)
                     cv2.imwrite('/world/data-gpu-94/liyang/testshow/{}.jpg'.format(count), save_image)    
+                    #cv2.imwrite('/world/data-gpu-94/liyang/testimages/{}.jpg'.format(count), save_image)    
             ipdb.set_trace()
 
         inps = inps.to(self.data_type)
@@ -322,8 +324,8 @@ class Trainer:
         self.save_ckpt(ckpt_name="latest")
         
         #close evaluate
-        #if self.epoch % 5 == 0:
-        #    self.save_ckpt(ckpt_name='epoch_{}'.format(self.epoch))
+        if self.epoch % 1 == 0:
+            self.save_ckpt(ckpt_name='epoch_{}'.format(self.epoch))
         if (self.epoch + 1) % self.exp.eval_interval == 0:
             all_reduce_norm(self.model)
             self.evaluate_and_save_model()

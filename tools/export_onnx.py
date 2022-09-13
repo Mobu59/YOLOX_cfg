@@ -16,6 +16,7 @@ from yolox.utils import replace_module
 
 def make_parser():
     parser = argparse.ArgumentParser("YOLOX onnx deploy")
+    parser.add_argument("-task", "--task_name", type=str, default="goods_det", help="goods_det, ahs_det, sens_det_yolox_m, ver_ped_det, head_det_tiny, head_det_nano, hands_goods_det, sens_det_yolox_l")
     parser.add_argument(
         "--output-name", type=str, default="yolox.onnx", help="output name of models"
     )
@@ -82,7 +83,7 @@ def main():
 
     logger.info("loading checkpoint done.")
     dummy_input = torch.randn(args.batch_size, 3, exp.test_size[0], exp.test_size[1])
-    args.opset = 9
+    #args.opset = 9
     print(dummy_input.shape)
 
     torch.onnx._export(

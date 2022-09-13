@@ -7,8 +7,10 @@ import xml.etree.ElementTree as ET
 from loguru import logger
 
 import cv2
+import copy
 import numpy as np
 
+from yolox.data import copy_paste, motion_blur
 from yolox.evaluators.voc_eval import voc_eval ,voc_eval_v1
 
 from .datasets_wrapper import Dataset
@@ -18,6 +20,7 @@ import sys
 
 #cfg = get_cfg("goods_det")
 cfg = get_cfg(sys.argv[2])
+fill_value = cfg['fill_value']
 
 class AnnotationTransform(object):
 
@@ -302,6 +305,14 @@ class TPDataset(Dataset):
                 print(e)
         return datalines
 
+    def get_index(self, array):
+        ind = np.random.randint(0, array.shape[0])
+        y1 = array[ind][3]
+        new_arr = np.where(np.abs(array[:, 3]-y1)<=30, 0, array[:, 3])
+        index = np.nonzero(new_arr)
+        zero_ind = np.where(new_arr==0)
+        return index, zero_ind
+
     def _parse_line(self, idx):
         k, info = self.ids[idx]
         res = []
@@ -310,6 +321,16 @@ class TPDataset(Dataset):
         img = cv2.imread(k, cv2.IMREAD_COLOR)
         if img is None:
             print("path is ", k)
+        #if "RPC" in k:
+        #    img = motion_blur(img)
+        date = k.split("/")[-2]
+        #if "smart_shelf_data" in k and "0715" not in date and "2019" not in date:
+        #    h, w, _ = img.shape
+        #    img[0:int(h*0.38), 0:w] = fill_value
+        #if "20220715" in date:
+        #    h, w, _ = img.shape
+        #    img[0:int(h*0.455), 0:w] = fill_value
+        ori_img = img.copy()
         h, w, _ = img.shape
         for face_info in info:
             xmin = max(0, face_info['xmin'])
@@ -317,6 +338,9 @@ class TPDataset(Dataset):
             ymin = max(0, face_info['ymin'])
             ymax = min(h, face_info['ymax'])
             name = face_info['name']
+            #由于调整了摄像头，导致比例不一定适配所有的图片，会有把标签框一起遮盖了的情况
+            #if "20220715_0729" in date and ymin <= int(h * 0.455):
+            #    continue
             #if xmin > w or ymin > h or xmax < 0 or ymax < 0 or int(name) == 1:
             if xmin > w or ymin > h or xmax < 0 or ymax < 0:
                 #print(k, face_info)
@@ -337,7 +361,7 @@ class TPDataset(Dataset):
             #if name < 0 or name >0:
             if name < 0:
                 name = 0
-            if name == cfg["ignore_label"]:
+            if name == cfg["ignore_label"] or name == 6:
                 continue
 
             #name = 1 - name
@@ -351,8 +375,45 @@ class TPDataset(Dataset):
         # r = min(self.img_size[0] / h, self.img_size[1] / w)
         if len(res) == 0:
             res = [[0, 0, 0, 0, 0]]
+        #if cfg["task_name"] == "hands_goods_det":
+        #    prob = np.random.random()
+        #    if prob > 0.4:
+        #        idx_ = np.random.randint(0, len(self.ids)) 
+        #        k_, info_ = self.ids[idx_]
+        #        if "RPC" not in k_:
+        #            img_ = cv2.imread(k_, cv2.IMREAD_COLOR)
+        #            label = []
+        #            h_, w_, _ = img_.shape
+        #            for i in info_:
+        #                xmin = max(0, i['xmin'])
+        #                xmax = min(w_, i['xmax'])
+        #                ymin = max(0, i['ymin'])
+        #                ymax = min(h_, i['ymax'])
+        #                name = i['name']
+        #                label.append([xmin, ymin, xmax, ymax, name])
+        #            if label == [[0, 0, 0, 0, 0]]:    
+        #                img = ori_img
+        #                res = res
+        #            else:    
+        #                if len(label) > 1:
+        #                    random_id = np.random.randint(0, len(label))
+        #                    main_label = np.array(label[random_id])
+        #                else:
+        #                    main_label = np.array(label[0])
+        #                new_img, box, save = copy_paste(img_, img, main_label, np.array(res))    
+        #                if save:
+        #                    img = new_img
+        #                    res = box
+        #                else:
+        #                    img = ori_img
+        #                    res = res
+        #        else:
+        #            img = ori_img
+        #            res = res
+
         if cfg["task_name"] == "goods_det":    
-            prob = np.random.randint(0, 2)
+            prob = np.random.randint(0, 3)
+            #随机涂抹黑框
             if prob == 1:
                 if len(res) >= 10:
                     for i in range(int(1/3*len(res))):
@@ -364,5 +425,24 @@ class TPDataset(Dataset):
                         y1 = int(y1)
                         img[y0:y1, x0:x1] = 0
                         res[count] = [0, 0, 0, 0, 0]
+            #随机按行涂抹            
+            elif prob == 2:
+                res = np.asarray(res)
+                labels = copy.deepcopy(res)
+                if res.shape[0] > 0 and labels.shape[0] > 0:
+                    index, zero_ind = self.get_index(res)
+                    res = res[index]
+                    labels = labels[zero_ind]
+                else:
+                    res = res
+                for i in range(res.shape[0]):
+                    if res.shape[0] == 1:
+                        continue
+                    x0 = int(res[i][0])
+                    y0 = int(res[i][1])
+                    x1 = int(res[i][2])
+                    y1 = int(res[i][3])
+                    img[y0:y1, x0:x1] = 0
+                res = labels    
         res = np.float32(res)
         return img, res

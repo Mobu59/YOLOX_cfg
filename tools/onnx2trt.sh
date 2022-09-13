@@ -7,13 +7,16 @@ trt_lib=/world/data-gpu-94/wyq/sonic-3rdparty/tensorrt/${trt_version}/lib:/world
 export LD_LIBRARY_PATH=${trt_lib}
 trt_bin=/world/data-gpu-94/wyq/sonic-3rdparty/tensorrt/${trt_version}/bin/trtexec
 ${trt_bin} \
-    --onnx=/world/data-gpu-94/liyang/onnx_models/head_dets/yolox_tiny_head_detection_20220330_288x512.onnx \
-    --saveEngine=/world/data-gpu-94/liyang/trt_models/yolox_tiny_head_det__${trt_version}.trt \
+    --onnx=/home/liyang/cfg_yolox/goods_det.onnx \
+    --saveEngine=/world/data-gpu-94/liyang/trt_models/goods_det/goods_det_${trt_version}.trt \
     --explicitBatch=1 \
     --batch=1 \
     --verbose
+
+    #--saveEngine=/world/data-gpu-94/liyang/trt_models/yolox_tiny_head_det_${trt_version}.trt \
     #--saveEngine=/world/data-gpu-94/liyang/trt_models/yolox_m_sens_det_test_${trt_version}.trt \
     #--saveEngine=/world/data-gpu-94/liyang/onnx/yolox_m_goods_v3_no_blackbox_${trt_version}.trt \
+    #--onnx=/world/data-gpu-94/liyang/onnx_models/head_dets/yolox_tiny_head_detection_20220330_288x512.onnx \
     #--onnx=/world/data-gpu-94/liyang/onnx_models/sensitive_dets/yolox_m_sens_dets_test.onnx \
     #--onnx=/world/data-gpu-94/liyang/onnx/yolox_goods_20220318_v3_no_blackbox.onnx \
     #--onnx=/world/data-gpu-94/liyang/onnx/yolox_goods_v2_ap0.9481.onnx \

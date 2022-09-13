@@ -13,6 +13,7 @@ import shutil
 
 def make_parser():
     parser = argparse.ArgumentParser("YOLOX ncnn deploy")
+    parser.add_argument("-task", "--task_name", type=str, default="goods_det", help="goods_det, ahs_det, sens_det_yolox_m, ver_ped_det, head_det, hands_goods_det, sens_det_yolox_l")
     parser.add_argument("-expn", "--experiment-name", type=str, default=None)
     parser.add_argument("-n", "--name", type=str, default=None, help="model name")
 

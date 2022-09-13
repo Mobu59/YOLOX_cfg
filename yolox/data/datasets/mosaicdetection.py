@@ -117,7 +117,8 @@ class MosaicDetection(Dataset):
                 bg_img[:img.shape[0], :img.shape[1]] = img
                 bg_labels = _labels.copy() * scale / r
                 #aug each img rather than whole mosaic img
-                if random.random() > 0.6:
+                #if random.random() > 0.6:
+                if random.random() > 0.0:
                     #bg_img, bg_labels = random_affine(
                     #    bg_img,
                     #    bg_labels,
@@ -204,7 +205,8 @@ class MosaicDetection(Dataset):
         else:
             self._dataset._input_dim = self.input_dim
             img, label, img_info, img_id = self._dataset.pull_item(idx)
-            if random.random() > 0.6:
+            #if random.random() > 0.6:
+            if random.random() > 0.0:
             #if random.random() > 1:
                 #img, label = random_affine(
                 #    img,
@@ -252,7 +254,7 @@ class MosaicDetection(Dataset):
             (int(img.shape[1] * cp_scale_ratio), int(img.shape[0] * cp_scale_ratio)),
             interpolation=cv2.INTER_LINEAR,
         )
-
+        
         cp_img[
             : int(img.shape[0] * cp_scale_ratio), : int(img.shape[1] * cp_scale_ratio)
         ] = resized_img

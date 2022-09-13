@@ -16,7 +16,6 @@ from yolox.exp import get_exp
 from yolox.utils import configure_nccl, configure_omp, get_num_devices
 from config import *
 
-
 def make_parser():
     parser = argparse.ArgumentParser("YOLOX train parser")
     parser.add_argument("-task", "--task_name", type=str, default="goods_det", help="goods_det, ahs_det, sens_det_yolox_m, ver_ped_det, head_det, hands_goods_det, sens_det_yolox_l")

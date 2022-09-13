@@ -201,13 +201,13 @@ class Focus(nn.Module):
         self.width = cfg['width']
         #if self.mode == 'yolox_tiny':
         #if 'yolox_tiny' in self.mode:
-        if self.width == 0.375: 
+        if self.width == 0.375 or self.width == 0.25: 
             self.conv1 = BaseConv(in_channels, in_channels * 4, ksize, stride=2, act=act)
 
     def forward(self, x):
         #if self.mode == 'yolox_tiny':
         #if 'yolox_tiny' in self.mode:
-        if self.width == 0.375: 
+        if self.width == 0.375 or self.width == 0.25: 
             output = self.conv(self.conv1(x))
             return output
         else:    

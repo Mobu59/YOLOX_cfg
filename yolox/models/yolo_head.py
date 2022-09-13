@@ -3,6 +3,8 @@
 # Copyright (c) 2014-2021 Megvii Inc. All rights reserved.
 
 import math
+import os
+import sys
 from loguru import logger
 
 import torch
@@ -13,7 +15,9 @@ from yolox.utils import bboxes_iou
 
 from .losses import IOUloss
 from .network_blocks import BaseConv, DWConv
+from config import *
 
+cfg = get_cfg(sys.argv[2])
 
 class YOLOXHead(nn.Module):
     def __init__(
@@ -126,15 +130,15 @@ class YOLOXHead(nn.Module):
         self.use_l1 = False
         self.l1_loss = nn.L1Loss(reduction="none")
         self.bcewithlog_loss = nn.BCEWithLogitsLoss(reduction="none")
-        self.iou_loss = IOUloss(reduction="none")
+        self.iou_loss = IOUloss(reduction="none", loss_type="siou")
         self.strides = strides
         self.grids = [torch.zeros(1)] * len(in_channels)
 
     def focal_loss_discrite(self, pred, gt):
         pos_inds = gt.eq(1).float()
         neg_inds = gt.eq(0).float()
-        pos_loss = torch.log(pred + 1e-5) * torch.pow(1 - pred, 2) * pos_inds * 0.75
-        neg_loss = torch.log(1 - pred + 1e-5) * torch.pow(pred, 2) * neg_inds * 0.25
+        pos_loss = torch.log(pred + 1e-5) * torch.pow(1 - pred, 2) * pos_inds * 0.25
+        neg_loss = torch.log(1 - pred + 1e-5) * torch.pow(pred, 2) * neg_inds * 0.75
         loss = - (pos_loss + neg_loss)
         return loss
 
@@ -155,8 +159,8 @@ class YOLOXHead(nn.Module):
         x_shifts = []
         y_shifts = []
         expanded_strides = []
-        #phase = 'deploy'
         phase = 'train'
+        #if run tools/pth2trt.py, set "trt_deploy" True 
         #trt_deploy = True
         trt_deploy = False
 
@@ -234,19 +238,33 @@ class YOLOXHead(nn.Module):
             if self.decode_in_inference:
                 #self.hw = [[80, 80], [40, 40], [20, 20]]
                 #self.hw = [[52, 52], [26, 26], [13, 13]]
-                self.hw = [[36, 64], [18, 32], [9, 16]]
+                #self.hw = [[36, 64], [18, 32], [9, 16]]
+                h0 = cfg["test_size"][0] // 8
+                w0 = cfg["test_size"][1] // 8
+                h1 = cfg["test_size"][0] // 16
+                w1 = cfg["test_size"][1] // 16
+                h2 = cfg["test_size"][0] // 32
+                w2 = cfg["test_size"][1] // 32
+                self.hw = [[h0, w0], [h1, w1], [h2, w2]]
                 yolo_outputs = []
                 #f = open('/world/data-gpu-94/liyang/onnx_models/head_dets/mobile_conf.txt', 'w')
-                f = open('/world/data-gpu-94/liyang/onnx_models/vertical_head_dets/mobile_conf.txt', 'w')
+                #f = open('/world/data-gpu-94/liyang/onnx_models/vertical_head_dets/mobile_conf.txt', 'w')
+                abs_path = os.path.join("/world/data-gpu-94/liyang/onnx_models", cfg['task_name'])
+                save_path = os.path.join(abs_path, "mobile_conf.txt")
+                f = open(save_path, 'w')
                 for idx, output in enumerate(outputs):
                     print(">>>>>> output", output.size())
                     #output = output.view(1, 1, 6, self.hw[idx][0], self.hw[idx][1])
-                    #output = output.view(1, 1, 5 + self.num_classes, self.hw[idx][0], self.hw[idx][1])
-                    output = output.view(1, 5 + self.num_classes, self.hw[idx][0], self.hw[idx][1])
-                    #output = output.permute(0, 1, 3, 4, 2)
-                    output = output.permute(0, 2, 3, 1)
-                    output = self.decode_output(output, self.hw[idx][0],
-                            self.hw[idx][1], self.strides[idx], dtype=xin[0].type(), save_file=f)
+                    if cfg["width"] == 0.375 or cfg["width"] == 0.25:
+                        output = output.view(1, 5 + self.num_classes, self.hw[idx][0], self.hw[idx][1])
+                        output = output.permute(0, 2, 3, 1)
+                        output = self.decode_output_mobile_platform(output, self.hw[idx][0],
+                                self.hw[idx][1], self.strides[idx], dtype=xin[0].type(), save_file=f)
+                    else:
+                        output = output.view(1, 1, 5 + self.num_classes, self.hw[idx][0], self.hw[idx][1])
+                        output = output.permute(0, 1, 3, 4, 2)
+                        output = self.decode_output(output, self.hw[idx][0],
+                                self.hw[idx][1], self.strides[idx], dtype=xin[0].type())
                     yolo_outputs += [output]
                 f.close()    
                 print(torch.cat(yolo_outputs, dim=2).shape)
@@ -298,7 +316,19 @@ class YOLOXHead(nn.Module):
         outputs[..., 2:4] = torch.exp(outputs[..., 2:4]) * strides
         return outputs
 
-    def decode_output(self, output, ny, nx, stride, dtype, save_file):
+    def decode_output(self, output, ny, nx, stride, dtype):
+        yv, xv = torch.meshgrid([torch.arange(ny), torch.arange(nx)])
+        grid = torch.stack((xv, yv), 2).view((1, ny, nx, 2)).float()
+        xy, wh, obj, cls = torch.split(output, [2, 2, 1, self.num_classes], 4) 
+        xy = (xy + grid) * stride
+        wh = torch.exp(wh) * stride
+        #x = torch.cat([xy, wh, obj, cls], 4)
+        x = torch.cat([xy, wh, obj], 4)
+        #x = x.view(1, 1, ny*nx, 5 + self.num_classes)
+        x = x.view(1, 1, ny*nx, 5)
+        return x
+
+    def decode_output_mobile_platform(self, output, ny, nx, stride, dtype, save_file):
         yv, xv = torch.meshgrid([torch.arange(ny), torch.arange(nx)])
         #grid = torch.stack((xv, yv), 2).view((1, 1, ny, nx, 2)).float()
         grid = torch.stack((xv, yv), 2).view((1, ny, nx, 2)).float()
@@ -471,6 +501,7 @@ class YOLOXHead(nn.Module):
 
         reg_weight = 5.0
         loss = reg_weight * loss_iou + loss_obj + loss_cls + loss_l1
+
 
         return (
             loss,

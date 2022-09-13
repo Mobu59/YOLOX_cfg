@@ -124,6 +124,14 @@ class Exp(MyExp):
                 img_size=self.test_size,
                 preproc=ValTransform(legacy=legacy),
                 )
+        #valdataset = VOCDetection(
+        #    #data_dir='/world/data-gpu-94/liyang/pedDetection/data/VOCdevkit',    
+        #    #data_dir='/world/data-gpu-94/liyang/pedDetection/data/ahs',    
+        #    data_dir='/world/data-gpu-94/liyang/pedDetection/data/goods',    
+        #    image_sets=[('2007', 'val')],
+        #    img_size=self.test_size,
+        #    preproc=ValTransform(legacy=legacy),
+        #)
 
         if is_distributed:
             batch_size = batch_size // dist.get_world_size()

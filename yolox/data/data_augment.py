@@ -21,6 +21,7 @@ from yolox.utils import xyxy2cxcywh
 from config import *
 
 cfg = get_cfg(sys.argv[2])
+fill_value = cfg['fill_value']
 
 def augment_hsv(img, hgain=5, sgain=30, vgain=30):
     hsv_augs = np.random.uniform(-1, 1, 3) * [hgain, sgain, vgain]  # random gains
@@ -144,8 +145,10 @@ def random_affine(
     M, scale, angle, bw, bh = get_affine_matrix(target_size, degrees, translate, scales, shear)
 
     #img = cv2.warpAffine(img, M, dsize=target_size, borderValue=(114, 114, 114))
-    img = cv2.warpAffine(img, M, dsize=(bw, bh), borderValue=(114, 114, 114))
-    padded_img = np.ones((target_size[1], target_size[0], 3), dtype=np.uint8) * 114
+    #img = cv2.warpAffine(img, M, dsize=(bw, bh), borderValue=(114, 114, 114))
+    #padded_img = np.ones((target_size[1], target_size[0], 3), dtype=np.uint8) * 114
+    img = cv2.warpAffine(img, M, dsize=(bw, bh), borderValue=(fill_value, fill_value, fill_value))
+    padded_img = np.ones((target_size[1], target_size[0], 3), dtype=np.uint8) * fill_value
     r = min(target_size[1] / img.shape[0], target_size[0] / img.shape[1])
     try:
         resized_img = cv2.resize(
@@ -195,9 +198,11 @@ def brightness_aug(image):
 
 def preproc(img, input_size, swap=(2, 0, 1)):
     if len(img.shape) == 3:
-        padded_img = np.ones((input_size[0], input_size[1], 3), dtype=np.uint8) * 114
+        #padded_img = np.ones((input_size[0], input_size[1], 3), dtype=np.uint8) * 114
+        padded_img = np.ones((input_size[0], input_size[1], 3), dtype=np.uint8) * fill_value
     else:
-        padded_img = np.ones(input_size, dtype=np.uint8) * 114
+        #padded_img = np.ones(input_size, dtype=np.uint8) * 114
+        padded_img = np.ones(input_size, dtype=np.uint8) * fill_value
 
     r = min(input_size[0] / img.shape[0], input_size[1] / img.shape[1])
     #r = min(208 / img.shape[0], 208 / img.shape[1])
@@ -212,6 +217,8 @@ def preproc(img, input_size, swap=(2, 0, 1)):
         print(e)
         pass
     padded_img = padded_img.transpose(swap)
+    ##for Quantification of the HiSilicon platform，need -127/128
+    #padded_img = (padded_img - 127.0) / 128.0
     padded_img = np.ascontiguousarray(padded_img, dtype=np.float32)
     return padded_img, r
 
@@ -248,8 +255,9 @@ class TrainTransform:
         boxes = xyxy2cxcywh(boxes)
         boxes *= r_
 
-        #mask_b = np.minimum(boxes[:, 2], boxes[:, 3]) > 8
-        mask_b = np.minimum(boxes[:, 2], boxes[:, 3]) > 2
+        #mask_b = np.minimum(boxes[:, 2], boxes[:, 3]) > 4
+        #mask_b = np.minimum(boxes[:, 2], boxes[:, 3]) > 4.2
+        mask_b = np.minimum(boxes[:, 2], boxes[:, 3]) > 3.6
         boxes_t = boxes[mask_b]
         labels_t = labels[mask_b]
 
@@ -314,3 +322,82 @@ class ValTransform:
             img -= np.array([0.485, 0.456, 0.406]).reshape(3, 1, 1)
             img /= np.array([0.229, 0.224, 0.225]).reshape(3, 1, 1)
         return img, np.zeros((1, 5))
+
+
+def random_flip_horizontal(img, box, p=0.5):
+    if np.random.random() < p:
+        w = img.shape[1]
+        img = img[:, ::-1, :]
+        box[:, [0, 2]] = w - box[:, [2, 0]]
+    return img, box    
+
+
+def Large_Scale_Jittering(img, box, min_scale=0.5, max_scale=2.0):
+    fill_value = np.random.randint(0, 255)
+    ratio = np.random.uniform(min_scale, max_scale)
+    h, w, _ = img.shape
+
+    h_, w_ = int(h * ratio), int(w * ratio)
+    img = cv2.resize(img, (w_, h_), interpolation=cv2.INTER_LINEAR)
+
+    return img, box
+
+
+def cal_iou(bbox1, bbox2):
+    bbox1 = torch.Tensor(bbox1)
+    bbox2 = torch.Tensor(bbox2)
+    tl = torch.max(bbox1[:, None, :2], bbox2[:, :2])
+    br= torch.min(bbox1[:, None, 2:4], bbox2[:, 2:4])
+    area_a = torch.prod(bbox1[:, 2:4] - bbox1[:, :2], 1)
+    area_b = torch.prod(bbox2[:, 2:4] - bbox2[:, :2], 1)
+    en = (tl < br).type(tl.type()).prod(dim=2)
+    area_i = torch.prod(br - tl, 2) * en
+    return area_i / (area_a[:, None] + area_b - area_i)
+
+
+def copy_paste(img_main, img_src, txt_main, txt_src):
+
+    save = False
+    #img_main, box_main = random_flip_horizontal(img_main, txt_main)
+    img_main, box_main = img_main, txt_main
+    img_src, box_src = random_flip_horizontal(img_src, txt_src)
+    #img_main, box_main = Large_Scale_Jittering(img_main, box_main)
+    #img_src, box_src = Large_Scale_Jittering(img_src, box_src)
+    #随机缩放
+    x0, y0, x1, y1 = int(float(box_main[0])), int(float(box_main[1])), int(float(box_main[2])), int(float(box_main[3]))
+    crop_img = img_main[y0:(y1 + 1), x0:(x1 + 1)]
+    scale_crop_img, _ = Large_Scale_Jittering(crop_img, box_main)
+    #随机粘贴
+    h, w = scale_crop_img.shape[0:2]
+    if img_src.shape[1] > w and img_src.shape[0] > h:
+        pos = (np.random.randint(0, img_src.shape[1] - w), np.random.randint(0, img_src.shape[0] - h))
+        src_h, src_w = img_src.shape[0:2]
+        img_src[pos[1]:pos[1] + h, pos[0]:pos[0] + w] = scale_crop_img
+        new_w = pos[0] + w    
+        new_h = pos[1] + h    
+        if new_w > img_src.shape[1]:
+            new_w = img_src.shape[1] - 1
+        if new_h > img_src.shape[0]:
+            new_h = img_src.shape[0] + 1
+        new_box = np.asarray([[pos[0], pos[1], new_w, new_h, 0]])    
+        box = np.vstack((box_src, new_box))
+        iou = cal_iou(box_src, new_box)
+        #if float(torch.max(iou)) < 0.03: #即使阈值给到0.03，仍会出现超大框套小框的情况，这个时候小框的目标被大框的覆盖了。
+        if float(torch.max(iou)) == 0:
+            #print(float(torch.max(iou)))
+            save = True
+        return img_src, box, save
+    else:
+        return img_src, np.array([[0, 0, 0, 0, 0]]), save
+
+
+def motion_blur(img, center=20, angle=30):
+    M = cv2.getRotationMatrix2D((center / 2, center / 2), angle, 1)
+    kernel = np.diag(np.ones(center))
+    kernel = cv2.warpAffine(kernel, M, (center, center))
+    kernel /= center
+    blurred_img = cv2.filter2D(img, -1, kernel)
+    cv2.normalize(blurred_img, blurred_img, 0, 255, cv2.NORM_MINMAX)
+    blurred_img = np.array(blurred_img, dtype=np.uint8)
+    return blurred_img
+

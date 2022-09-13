@@ -8,9 +8,12 @@ import cv2
 import numpy as np
 
 from .data_augment import get_aug_params, random_affine
+from config import *
+import sys
 
-
-def rotate_bound(img, angle, borderValue=(114, 114, 114)):
+cfg = get_cfg(sys.argv[2])
+fill_value = cfg['fill_value']
+def rotate_bound(img, angle, borderValue=(114,114,114)):
     h, w = img.shape[:2]
     cX, cY = w / 2, h / 2
     M = cv2.getRotationMatrix2D((cX, cY), -angle, 1.0)
@@ -23,7 +26,7 @@ def rotate_bound(img, angle, borderValue=(114, 114, 114)):
 
     M[0, 2] += nW / 2 - cX
     M[1, 2] += nH / 2 - cY
-    new_img = cv2.warpAffine(img, M, (nW, nH), borderValue)
+    new_img = cv2.warpAffine(img, M, (nW, nH), borderValue=borderValue)
 
     return new_img
 
@@ -66,7 +69,7 @@ def ellipserotate(angle, b_H, b_W, x_c, y_c, pointx, pointy):
 def getRotatedImg(img, label, degrees):
     angle = get_aug_params(degrees)
     #rotation_image = imutils.rotate_bound(img, angle)
-    rotation_image = rotate_bound(img, angle)
+    rotation_image = rotate_bound(img, angle, borderValue=(fill_value,fill_value,fill_value))
     height, width = img.shape[:2]
     height_new, width_new = rotation_image.shape[:2]
     i = label.copy()

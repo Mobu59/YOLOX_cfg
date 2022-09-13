@@ -16,9 +16,9 @@ from yolox.exp import get_exp
 
 def make_parser():
     parser = argparse.ArgumentParser("YOLOX ncnn deploy")
+    parser.add_argument("-task", "--task_name", type=str, default="goods_det", help="goods_det, ahs_det, sens_det_yolox_m, ver_ped_det, head_det, hands_goods_det, sens_det_yolox_l")
     parser.add_argument("-expn", "--experiment-name", type=str, default=None)
     parser.add_argument("-n", "--name", type=str, default=None, help="model name")
-
     parser.add_argument(
         "-f",
         "--exp_file",
@@ -68,6 +68,7 @@ def main():
     )
     torch.save(model_trt.state_dict(), os.path.join(file_name, "model_trt.pth"))
     logger.info("Converted TensorRT model done.")
+    logger.info("TensorRT model pth saved at {}".format(os.path.join(file_name, "model_trt.pth")))
     engine_file = os.path.join(file_name, "model_trt.engine")
     engine_file_demo = os.path.join("demo", "TensorRT", "cpp", "model_trt.engine")
     with open(engine_file, "wb") as f:
@@ -76,6 +77,7 @@ def main():
     shutil.copyfile(engine_file, engine_file_demo)
 
     logger.info("Converted TensorRT model engine file is saved for C++ inference.")
+    logger.info("TensorRT model engine saved at {}".format(engine_file_demo))
 
 
 if __name__ == "__main__":
