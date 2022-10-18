@@ -314,7 +314,7 @@ class GoodsDataset(Dataset):
             ymin = max(0, face_info['ymin'])
             ymax = min(h, face_info['ymax'])
             name = face_info['name']
-            if xmin > w or ymin > h or xmax < 0 or ymax < 0:
+            if xmin > w or ymin > h or xmax < 0 or ymax < 0 or xmax - xmin <= 0 or ymax - ymin <= 0:
                 #print(k, face_info)
                 continue
 

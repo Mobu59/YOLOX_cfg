@@ -249,8 +249,10 @@ class YOLOXHead(nn.Module):
                 yolo_outputs = []
                 #f = open('/world/data-gpu-94/liyang/onnx_models/head_dets/mobile_conf.txt', 'w')
                 #f = open('/world/data-gpu-94/liyang/onnx_models/vertical_head_dets/mobile_conf.txt', 'w')
-                abs_path = os.path.join("/world/data-gpu-94/liyang/onnx_models", cfg['task_name'])
-                save_path = os.path.join(abs_path, "mobile_conf.txt")
+                abs_path = "./onnx_models"
+                if not os.path.exists(abs_path):
+                    os.mkdir(abs_path, 0o777)
+                save_path = os.path.join(abs_path, "{}_mobile_conf.txt".format(cfg['task_name']))
                 f = open(save_path, 'w')
                 for idx, output in enumerate(outputs):
                     print(">>>>>> output", output.size())
@@ -322,10 +324,10 @@ class YOLOXHead(nn.Module):
         xy, wh, obj, cls = torch.split(output, [2, 2, 1, self.num_classes], 4) 
         xy = (xy + grid) * stride
         wh = torch.exp(wh) * stride
-        #x = torch.cat([xy, wh, obj, cls], 4)
-        x = torch.cat([xy, wh, obj], 4)
-        #x = x.view(1, 1, ny*nx, 5 + self.num_classes)
-        x = x.view(1, 1, ny*nx, 5)
+        x = torch.cat([xy, wh, obj, cls], 4)
+        #x = torch.cat([xy, wh, obj], 4)
+        x = x.view(1, 1, ny*nx, 5 + self.num_classes)
+        # x = x.view(1, 1, ny*nx, 5)
         return x
 
     def decode_output_mobile_platform(self, output, ny, nx, stride, dtype, save_file):

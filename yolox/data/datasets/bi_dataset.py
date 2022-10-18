@@ -3,6 +3,9 @@ import os
 import os.path
 import random
 import pickle
+import cv2
+import numpy as np
+import albumentations as albu
 import xml.etree.ElementTree as ET
 from loguru import logger
 
@@ -80,6 +83,81 @@ class AnnotationTransform(object):
 
         return res, img_info
 
+def get_po_faceboxes_augumentation(phase, width=640, height=640, min_area=0.,
+        min_visibility=0., bbox_format='pascal_voc'):
+    print("<<<<<<<<< using get_po_faceboxes_augumentation")
+    list_transforms = []
+    if phase == 'train':
+        list_transforms.extend([
+            albu.augmentations.transforms.JpegCompression(
+                quality_lower=50, quality_upper=90,
+                always_apply=False, p=0.5),
+            albu.OneOf([
+                albu.augmentations.transforms.RandomScale(
+                    scale_limit=(0.5, 2), p=1.0),
+                albu.augmentations.transforms.RandomScale(
+                    scale_limit=(0.5, 2), p=1.0),
+                albu.augmentations.transforms.RandomScale(
+                    scale_limit=(0.5, 2), p=1.0),
+                ]),
+            albu.PadIfNeeded(min_height=height,
+                             always_apply=True, border_mode=cv2.BORDER_CONSTANT,
+                             value=[0, 0, 0]),
+            albu.augmentations.transforms.SmallestMaxSize(
+                max_size=width, always_apply=True),
+            albu.augmentations.transforms.RandomCrop(
+                height=height,
+                width=width, p=1.0),
+            # albu.augmentations.transforms.RandomResizedCrop(
+            #     height=height,
+            #     width=width, p=1.0),
+            albu.augmentations.transforms.Rotate(
+                limit=100, interpolation=1, border_mode=cv2.BORDER_CONSTANT,
+                value=[0, 0, 0],
+                mask_value=[0, 0, 0], always_apply=False, p=0.7),
+            # # albu.augmentations.transforms.Flip(),
+            # # albu.augmentations.transforms.Transpose(),
+            albu.OneOf([
+                albu.RandomBrightnessContrast(brightness_limit=0.2,
+                                              contrast_limit=0.2),
+                # albu.RandomGamma(gamma_limit=(50, 150)),
+                albu.NoOp()
+            ]),
+            # albu.augmentations.transforms.Blur(blur_limit=14, p=0.5),
+            albu.OneOf([
+                albu.RGBShift(r_shift_limit=5, b_shift_limit=5,
+                              g_shift_limit=5),
+                albu.HueSaturationValue(hue_shift_limit=10,
+                                        sat_shift_limit=10),
+                albu.NoOp()
+            ]),
+            albu.augmentations.transforms.ToGray(always_apply=False, p=0.1),
+            # albu.CLAHE(p=0.8),
+            # albu.HorizontalFlip(p=0.15),
+
+            # albu.VerticalFlip(p=0.5),
+        ])
+    if(phase == 'test'):
+        list_transforms.extend([
+            albu.Resize(height=height, width=width)
+        ])
+    # list_transforms.extend([
+    #     albu.Normalize(mean=(0.5, 0.5, 0.5),
+    #                    std=(0.5, 0.5, 0.5), p=1),
+    #     ToTensor()
+    # ])
+    if(phase == 'test'):
+        return albu.Compose(list_transforms)
+    return albu.Compose(
+            list_transforms,
+            bbox_params=albu.BboxParams(
+                format=bbox_format,
+                min_area=min_area,
+                min_visibility=min_visibility,
+                label_fields=['category_id']))
+            # keypoint_params=albu.KeypointParams(
+            #     format='xy'))
+
 
 class TPDataset(Dataset):
     def __init__(
@@ -94,7 +172,12 @@ class TPDataset(Dataset):
         super().__init__(img_size)
         self.root = data_dir
         self.img_size = img_size
-        self.preproc = preproc
+        aug = get_po_faceboxes_augumentation(
+                'train',
+                width=img_size[0], height=img_size[1],
+                min_area=100., min_visibility=0.7,
+                bbox_format='pascal_voc')
+        self.preproc = aug
         self.target_transform = target_transform
         self.name = dataset_name
         #self._classes = 1
@@ -130,7 +213,10 @@ class TPDataset(Dataset):
         return img
 
     def load_image_v2(self, index):
-        img, label = self._parse_line(index)
+        img = None 
+        while img is None:
+            img, label = self._parse_line(index)
+            index += 1
         assert img is not None
         return img, label
 
@@ -147,8 +233,29 @@ class TPDataset(Dataset):
         """
         target, img, img_info = self.load_resized_img(index)
             # target, img_info, _ = self.annotations[index]
+        aug_target = [] 
+        if self.preproc is not None:
+            bbox_index = [i for i in range(target.shape[0])]
+            bbox_index = np.array(bbox_index, dtype=np.int8).reshape((len(bbox_index),))
+            anno = {'image': img, 'bboxes': target[:, :4], 'category_id': target[:, 4]}
+            try:
+                t = self.preproc(**anno)
+                if (len(t['bboxes']) == 0):
+                    aug_target.append([0, 0, 0, 0, 0])
+                else:
+                    for bbox_idx, bbox in enumerate(t['bboxes']):
+                        # bbox_list = [v/self.img_size[0] for v in bbox]
+                        bbox_list = [v for v in bbox]
+                        bbox_list.append(int(t['category_id'][bbox_idx]))
+                        aug_target.append(bbox_list)
+                img = t['image']
+                # target = aug_target
+            except Exception as e:
+                aug_target.append([0, 0, 0, 0, 0])
+                print(e)
+                k, info = self.ids[index]
+                print("path", k)
 
-        # print("tpdataset pull item", target)
         return img, target, img_info, index
 
     # def load_anno(self, index):
@@ -158,9 +265,22 @@ class TPDataset(Dataset):
     def __getitem__(self, index):
         img, target, img_info, img_id = self.pull_item(index)
 
+        aug_target = [] 
         if self.preproc is not None:
-            img, target = self.preproc(img, target, self.input_dim)
+            bbox_index = [i for i in range(target.shape[0])]
+            bbox_index = np.array(bbox_index, dtype=np.int8).reshape((len(bbox_index),))
+            anno = {'image': img, 'bboxes': target[:, :4], 'category_id': target[:, 4]}
+            t = self.preproc(**anno)
+            if (len(t['bboxes']) == 0):
+                aug_target.append([0, 0, 0, 0, 0])
+            else:
+                for bbox_idx, bbox in enumerate(t['bboxes']):
+                    bbox_list = [v/self.img_size[0] for v in bbox]
+                    bbox_list.append(t['category_id'][bbox_idx])
+                    aug_target.append(bbox_list)
 
+            img = t['image']
+            target = np.array(aug_target)
         # print("tpdataset", target)
         return img, target, img_info, img_id
 
@@ -342,7 +462,7 @@ class TPDataset(Dataset):
             #if "20220715_0729" in date and ymin <= int(h * 0.455):
             #    continue
             #if xmin > w or ymin > h or xmax < 0 or ymax < 0 or int(name) == 1:
-            if xmin > w or ymin > h or xmax < 0 or ymax < 0:
+            if xmin > w or ymin > h or xmax > w or ymax > h or xmax < 0 or ymax < 0 or xmax - xmin <= 0 or ymax - ymin <= 0:
                 #print(k, face_info)
                 continue
 
@@ -374,7 +494,7 @@ class TPDataset(Dataset):
 
         # r = min(self.img_size[0] / h, self.img_size[1] / w)
         if len(res) == 0:
-            res = [[0, 0, 0, 0, 0]]
+            return None, None
         #if cfg["task_name"] == "hands_goods_det":
         #    prob = np.random.random()
         #    if prob > 0.4:

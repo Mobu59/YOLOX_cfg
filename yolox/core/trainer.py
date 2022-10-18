@@ -91,8 +91,8 @@ class Trainer:
         iter_start_time = time.time()
 
         inps, targets = self.prefetcher.next()
-        debug = 0
-        if debug:
+        debug = False
+        if debug == True:
             from tqdm import trange
             import cv2 
             import numpy as np
@@ -207,8 +207,8 @@ class Trainer:
                         #save_image = cv2.rectangle(image, (int(x0), int(y0)),
                         #        (int(x1), int(y1)), (0, 255, 255))
                         save_image = cv2.rectangle(image, (int(x0), int(y0)),
-                                (int(x1), int(y1)), color)
-                    cv2.imwrite('/world/data-gpu-94/liyang/testshow/{}.jpg'.format(count), save_image)    
+                                (int(x1), int(y1)), color=(0, 0, 255), thickness=3, lineType=3)
+                    cv2.imwrite('/world/data-gpu-94/wyq/testshow/{}.jpg'.format(count), save_image)    
                     #cv2.imwrite('/world/data-gpu-94/liyang/testimages/{}.jpg'.format(count), save_image)    
             ipdb.set_trace()
 
@@ -326,9 +326,9 @@ class Trainer:
         #close evaluate
         if self.epoch % 1 == 0:
             self.save_ckpt(ckpt_name='epoch_{}'.format(self.epoch))
-        if (self.epoch + 1) % self.exp.eval_interval == 0:
-            all_reduce_norm(self.model)
-            self.evaluate_and_save_model()
+        # if (self.epoch + 1) % self.exp.eval_interval == 0:
+        #     all_reduce_norm(self.model)
+        #     self.evaluate_and_save_model()
 
     def before_iter(self):
         pass

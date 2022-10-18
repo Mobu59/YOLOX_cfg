@@ -116,7 +116,7 @@ if __name__ == "__main__":
     #os.environ['CUDA_VISIBLE_DEVICES'] = '6, 7'
     #os.environ['CUDA_VISIBLE_DEVICES'] = '3'
     import sys
-    os.environ['CUDA_VISIBLE_DEVICES'] = '4, 5, 6, 7'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0, 1'
     #cfg = get_cfg("goods_det")
     cfg = get_cfg(sys.argv[2])
     #os.environ['CUDA_VISIBLE_DEVICES'] = '2, 3'

@@ -209,6 +209,8 @@ def voc_eval_v1(
         for i, imagename in enumerate(imagenames):
             for x in lines:
                 if x.strip().split('\t')[0] == imagename:
+                    if (len(x.strip().split('\t')) < 2):
+                        continue
                     recs[imagename] = json.loads(x.strip().split('\t')[1]) 
         # save
         print("Saving cached annotations to {:s}".format(cachefile))
