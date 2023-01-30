@@ -112,7 +112,7 @@ def get_po_faceboxes_augumentation(phase, width=640, height=640, min_area=0.,
             #     height=height,
             #     width=width, p=1.0),
             albu.augmentations.transforms.Rotate(
-                limit=100, interpolation=1, border_mode=cv2.BORDER_CONSTANT,
+                limit=20, interpolation=1, border_mode=cv2.BORDER_CONSTANT,
                 value=[0, 0, 0],
                 mask_value=[0, 0, 0], always_apply=False, p=0.7),
             # # albu.augmentations.transforms.Flip(),
@@ -249,9 +249,9 @@ class TPDataset(Dataset):
                         bbox_list.append(int(t['category_id'][bbox_idx]))
                         aug_target.append(bbox_list)
                 img = t['image']
-                # target = aug_target
+                target = np.array(aug_target, dtype=np.float)
             except Exception as e:
-                aug_target.append([0, 0, 0, 0, 0])
+                # aug_target.append([0, 0, 0, 0, 0])
                 print(e)
                 k, info = self.ids[index]
                 print("path", k)

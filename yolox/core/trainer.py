@@ -91,8 +91,7 @@ class Trainer:
         iter_start_time = time.time()
 
         inps, targets = self.prefetcher.next()
-        debug = False
-        if debug == True:
+        if False:
             from tqdm import trange
             import cv2 
             import numpy as np
