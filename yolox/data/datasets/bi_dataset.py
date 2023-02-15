@@ -175,11 +175,9 @@ class TPDataset(Dataset):
                 width=img_size[0], height=img_size[1],
                 min_area=100., min_visibility=0.7,
                 bbox_format='pascal_voc')
-        #self.preproc = aug
-        self.preproc = None
+        self.preproc = aug
         self.target_transform = target_transform
         self.name = dataset_name
-        #self._classes = 1
         self._classes = VOC_CLASSES 
         self.ids = self._parse_dataset(data_dir)
         self.samples_n = None
@@ -404,7 +402,7 @@ class TPDataset(Dataset):
     def _parse_dataset(self, root):
         import json
         import tqdm
-        lines = open(root, 'r').readlines()[0:1000]
+        lines = open(root, 'r').readlines()
         # if self.samples_n is not None:
         #     print('samples_n', self.samples_n)
         #     lines = lines[:self.samples_n]
@@ -480,7 +478,7 @@ class TPDataset(Dataset):
             #if name < 0 or name >0:
             if name < 0:
                 name = 0
-            if name == cfg["ignore_label"] or name == 6:
+            if name == cfg["ignore_label"] or name == 6 or int(name) == 1:
                 continue
 
             #name = 1 - name

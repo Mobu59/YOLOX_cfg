@@ -290,7 +290,7 @@ cfg_sens_det_yolox_m = {
         "depth": 0.67,
         "width": 0.75,
         "warmup_epochs": 2,
-        "no_aug_epochs": 10,
+        "no_aug_epochs": 20,
         "max_epoch": 20,
         "flip_prob": 0.5,
         "degrees": 180.0,
