@@ -236,9 +236,6 @@ class YOLOXHead(nn.Module):
             #else:
             #    return outputs
             if self.decode_in_inference:
-                #self.hw = [[80, 80], [40, 40], [20, 20]]
-                #self.hw = [[52, 52], [26, 26], [13, 13]]
-                #self.hw = [[36, 64], [18, 32], [9, 16]]
                 h0 = cfg["test_size"][0] // 8
                 w0 = cfg["test_size"][1] // 8
                 h1 = cfg["test_size"][0] // 16
@@ -247,8 +244,6 @@ class YOLOXHead(nn.Module):
                 w2 = cfg["test_size"][1] // 32
                 self.hw = [[h0, w0], [h1, w1], [h2, w2]]
                 yolo_outputs = []
-                #f = open('/world/data-gpu-94/liyang/onnx_models/head_dets/mobile_conf.txt', 'w')
-                #f = open('/world/data-gpu-94/liyang/onnx_models/vertical_head_dets/mobile_conf.txt', 'w')
                 abs_path = "./onnx_models"
                 if not os.path.exists(abs_path):
                     os.mkdir(abs_path, 0o777)
@@ -502,7 +497,10 @@ class YOLOXHead(nn.Module):
             loss_l1 = 0.0
 
         reg_weight = 5.0
-        loss = reg_weight * loss_iou + loss_obj + loss_cls + loss_l1
+        #loss = reg_weight * loss_iou + loss_obj + loss_cls + loss_l1
+
+        cls_weight = 3.0
+        loss = reg_weight * loss_iou + loss_obj + cls_weight * loss_cls + loss_l1
 
 
         return (

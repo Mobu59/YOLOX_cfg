@@ -1,11 +1,12 @@
-export CUDA_VISIBLE_DEVICES=3
+export CUDA_VISIBLE_DEVICES=6
 python3 detect.py \
--task ver_ped_det \
---ckpt=/world/data-gpu-94/liyang/cfg_yolox/trained_models/ver_ped_det/yolox_all_0909/latest_ckpt.pth \
+-task hands_goods_det \
 --exp_file=/home/liyang/cfg_yolox/exps/default/yolox_all.py \
+--ckpt=/world/data-gpu-94/wyq/cfg_yolox/trained_models/hands_goods_det_v3/yolox_all/epoch_16_ckpt.pth \
 --conf=0.35 \
---nms=0.5 \
---save_result  
+--nms=0.35 \
+--save_as_video  
+#--save_result  
 #--demo video \
 #--trt \
 #-task goods_det \
@@ -19,6 +20,10 @@ python3 detect.py \
 #--ckpt=/world/data-gpu-94/liyang/YOLOX/YOLOX_M/to_save_yolox_m_sen_det_pths/yolox_m_sens_fp1525_fn_1456.pth \
 #-task goods_det \
 #--ckpt=/home/liyang/cfg_yolox/trained_models/goods_det/yolox_all/latest_ckpt.pth \
+#-task hands_goods_det \
+#--ckpt=/world/data-gpu-94/liyang/cfg_yolox/trained_models/hands_goods_det/yolox_all/latest_ckpt.pth \
+#--ckpt=/world/data-gpu-94/wyq/cfg_yolox/trained_models/hands_goods_det_v3/yolox_all/epoch_99_ckpt.pth \
+#--ckpt=/world/data-gpu-94/wyq/cfg_yolox/trained_models/hands_goods_det_v3/yolox_all/epoch_16_ckpt.pth \
 
 #--ckpt=/world/data-gpu-94/liyang/YOLOX/goods_det/yolox_all_v3/best_ckpt.pth \
 #--ckpt=/home/liyang/cfg_yolox/trained_models/ped_det_tiny/yolox_all/latest_ckpt.pth \

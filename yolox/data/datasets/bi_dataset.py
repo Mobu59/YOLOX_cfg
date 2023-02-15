@@ -155,8 +155,6 @@ def get_po_faceboxes_augumentation(phase, width=640, height=640, min_area=0.,
                 min_area=min_area,
                 min_visibility=min_visibility,
                 label_fields=['category_id']))
-            # keypoint_params=albu.KeypointParams(
-            #     format='xy'))
 
 
 class TPDataset(Dataset):

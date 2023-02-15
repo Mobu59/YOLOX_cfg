@@ -41,6 +41,11 @@ def make_parser():
         help="whether to save the inference result of image/video",
     )
 
+    parser.add_argument(
+        "--save_as_video",
+        action="store_true",
+        help="whether to save the inference result of image as video",
+    )
     # exp file
     parser.add_argument(
         "-f",
@@ -188,13 +193,14 @@ class Predictor(object):
         bboxes /= ratio
 
         cls = output[:, 6]
-        scores = output[:, 4] * output[:, 5]
+        #scores = output[:, 4] * output[:, 5]
+        scores = output[:, 4]
 
         vis_res = vis(img, bboxes, scores, cls, cls_conf, self.cls_names)
         return vis_res
 
 
-def image_demo(predictor, vis_folder, path, current_time, save_result, f):
+def image_demo(predictor, vis_folder, path, current_time, save_result, f, save_as_video, vid_writer):
     if os.path.isdir(path):
         files = get_image_list(path)
     else:
@@ -207,6 +213,9 @@ def image_demo(predictor, vis_folder, path, current_time, save_result, f):
         #    f.write('{:s} {}'.format(image_name, '[]') + '\n')
         if outputs is None or outputs[0] is None: 
             f.write('{:s} {}'.format(image_name, '[]') + '\n')
+            if save_as_video:
+                result_image = cv2.imread(image_name)
+                vid_writer.write(result_image)
             if save_result:
                 result_image = cv2.imread(image_name)
                 if result_image is None:
@@ -255,6 +264,11 @@ def image_demo(predictor, vis_folder, path, current_time, save_result, f):
         #ch = cv2.waitKey(0)
         #if ch == 27 or ch == ord("q") or ch == ord("Q"):
         #    break
+        
+        #将视频帧推理得到的结果保存成视频
+        if save_as_video:
+            result_image = predictor.visual(outputs[0], img_info, predictor.confthre)
+            vid_writer.write(result_image)
 
 def imageflow_demo(predictor, vis_folder, current_time, args):
     cap = cv2.VideoCapture(args.path if args.demo == "video" else args.camid)
@@ -273,26 +287,16 @@ def imageflow_demo(predictor, vis_folder, current_time, args):
     s_ratio = fps / 10.0
     vid_writer = cv2.VideoWriter(
         save_path, cv2.VideoWriter_fourcc(*"mp4v"), fps/s_ratio, (int(width), int(height))
-        #save_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (int(width*0.752), int(height*0.69))
     )
     cnt = 1
     #while True:
-    keep = []
     while cnt <= 4000:
         ret_val, frame = cap.read()
-        keep.append(frame)
         if ret_val:
-            if cnt % 5 == 0: 
-            #h, w, _ = frame.shape
-            #frame = frame[:int(h*0.69), :int(w*0.752)]
-                for i, frame in enumerate(keep):
-                    if i == 0 or i == 3:
-                    #if True:
-                        outputs, img_info = predictor.inference(frame)
-                        result_frame = predictor.visual(outputs[0], img_info, predictor.confthre)
-                        if args.save_result:
-                            vid_writer.write(result_frame)
-                keep = []
+            outputs, img_info = predictor.inference(frame)
+            result_frame = predictor.visual(outputs[0], img_info, predictor.confthre)
+            if args.save_result:
+                vid_writer.write(result_frame)
             #ch = cv2.waitKey(1)
             #if ch == 27 or ch == ord("q") or ch == ord("Q"):
             #    break
@@ -312,7 +316,7 @@ def main(exp, args, test_data, save_path):
     #args.save_result = True
 
     vis_folder = None
-    if args.save_result:
+    if args.save_result or args.save_as_video:
         vis_folder = os.path.join(file_name, "vis_res")
         os.makedirs(vis_folder, exist_ok=True)
 
@@ -382,15 +386,28 @@ def main(exp, args, test_data, save_path):
             with open(test_data_path, 'r') as f:
                 img_cnt = 0
                 lines = f.readlines()
+                vid_writer = None
+                if args.save_as_video:
+                    args.path = lines[0].strip().split("\t")[0]
+                    img = cv2.imread(args.path)
+                    height, width = img.shape[:2]
+                    save_folder = os.path.join(
+                        vis_folder, time.strftime("%Y_%m_%d_%H_%M_%S", current_time)
+                    )
+                    os.makedirs(save_folder, exist_ok=True)
+                    save_path = os.path.join(save_folder, args.path.split("/")[-2].split("_imgs")[0] + ".mp4")
+                    vid_writer = cv2.VideoWriter(
+                        save_path, cv2.VideoWriter_fourcc(*"mp4v"), 10, (int(width), int(height))
+                    )
                 #random.shuffle(lines)
-                #lines = lines[500:1000]
+                #lines = lines[:300]
                 for line in lines:
                     img_cnt += 1
                     line = line.strip().split('\t')
                     #line = line.strip().split('\n')
                     k = line[0]
                     args.path = k
-                    image_demo(predictor, vis_folder, args.path, current_time, args.save_result, save_txt)
+                    image_demo(predictor, vis_folder, args.path, current_time, args.save_result, save_txt, args.save_as_video, vid_writer)
                 print("-----------------------------------------")    
                 print("{} lines have been parsed".format(img_cnt))    
                 print("-----------------------------------------")    
@@ -399,29 +416,31 @@ def main(exp, args, test_data, save_path):
             args.path = test_data_path 
             #image_demo(predictor, vis_folder, args.path, current_time, args.save_result, None)
             image_demo(predictor, vis_folder, args.path, current_time,
-                    args.save_result, save_txt)
+                    args.save_result, save_txt, save_as_video, vid_writer)
     elif args.demo == "video" or args.demo == "webcam":
-        dir = False
+        dir = True
         if dir:
             video_dir = '/world/data-gpu-94/liyang/shelf_test_imgs/shelf_videos/test_videso'
             video_dir = '/world/data-gpu-94/liyang/shelf_test_imgs/shelf_videos/20220810_test_videos'
             #video_dir = '/world/data-gpu-94/liyang/shelf_test_imgs/xlsx_files/20220830_测试视频'
             video_dir = '/world/data-gpu-94/liyang/shelf_test_imgs/shelf_videos/20220906_test_videos'
+            video_dir = '/world/data-gpu-94/liyang/shelf_test_imgs/shelf_videos/smart_shelf_videos/20230131_videos'
+            video_dir = '/world/data-gpu-94/liyang/shelf_test_imgs/shelf_videos/smart_shelf_videos/20230201_videos'
             #video_dir = '/world/data-gpu-94/liyang/shelf_test_imgs/shelf_videos/20220715_videos'
             #video_dir = '/world/data-gpu-94/liyang/shelf_test_imgs/shelf_videos/20220729_videos'
             video_lst = os.listdir(video_dir)
             #random.shuffle(video_lst)
-            #for cnt, i in enumerate(random.shuffle(os.listdir(video_dir))):
             for cnt, i in enumerate(video_lst):
                 args.path = os.path.join(video_dir, i)
-                imageflow_demo(predictor, vis_folder, current_time, args)
-                if cnt == 7:
-                    exit()
+                if os.path.isfile(args.path):
+                    imageflow_demo(predictor, vis_folder, current_time, args)
+                    if cnt == 7:
+                        exit()
         else:            
             imageflow_demo(predictor, vis_folder, current_time, args)
     
 if __name__ == "__main__":
-    os.environ['CUDA_VISIBLE_DEVICES'] = '3'
+    #os.environ['CUDA_VISIBLE_DEVICES'] = '3'
     args = make_parser().parse_args()
     #743张政治人物测试图
     #test_data_path = '/world/data-gpu-94/face_detection_data/po_data/po_data_test/po_data_test.json'
@@ -457,6 +476,14 @@ if __name__ == "__main__":
     #test_data_path = '/world/data-gpu-94/smart_shelf_data/data_v3/data.v5.json'
     test_data_path = '/world/data-gpu-94/ped_detection_data/biped.v8.head.mix.shuf.test.json'
     test_data_path = '/world/data-gpu-94/ped_detection_data/bi_headtop/daily_headtop_data/test_data.json'
+    test_data_path = '/world/data-gpu-94/smart_shelf_data/data_v4/test.v2.json'
+    test_data_path = '/world/data-gpu-94/liyang/shelf_test_imgs/shelf_videos/smart_shelf_videos/20230201_videos/Fps10_302097_imgs.json'
+    test_data_path = '/world/data-gpu-94/liyang/shelf_test_imgs/shelf_videos/smart_shelf_videos/20230201_videos/Fps10_imgs.json'
+    test_data_path = '/world/data-gpu-94/liyang/shelf_test_imgs/shelf_videos/smart_shelf_videos/20230201_videos/Fps10_imgs_20230202.json'
+    test_data_path = '/world/data-gpu-94/liyang/shelf_test_imgs/shelf_videos/smart_shelf_videos/20230201_videos/Fps10_imgs_20230207.json'
+    test_data_path = '/world/data-gpu-94/liyang/shelf_test_imgs/shelf_videos/smart_shelf_videos/20230201_videos/Fps10_imgs_20230201_02.json'
+    test_data_path = '/world/data-gpu-94/liyang/shelf_test_imgs/shelf_videos/smart_shelf_videos/20230201_videos/Fps10_imgs_20230208.json'
+    test_data_path = '/world/data-gpu-94/liyang/shelf_test_imgs/shelf_videos/smart_shelf_videos/20230201_videos/Fps10_test_imgs_0208.json'
     #test_data_path = '/world/data-gpu-94/smart_shelf_data/20220901_data.json'
     #test_data_path = '/world/data-gpu-94/wyq/mobile_video_data/demo2020/hw_ped/ped3/frame_000650.jpg'
     #test_data_path = '/world/data-gpu-94/wyq/mobile_video_data/demo2020/hw_ped/ped3.txt'
