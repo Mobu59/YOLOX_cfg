@@ -218,7 +218,7 @@ def preproc(img, input_size, swap=(2, 0, 1)):
         pass
     padded_img = padded_img.transpose(swap)
     ##for Quantification of the HiSilicon platform，need -127/128
-    #padded_img = (padded_img - 127.0) / 128.0
+    padded_img = (padded_img - 127.0) / 128.0
     padded_img = np.ascontiguousarray(padded_img, dtype=np.float32)
     return padded_img, r
 
@@ -257,7 +257,7 @@ class TrainTransform:
 
         #mask_b = np.minimum(boxes[:, 2], boxes[:, 3]) > 4
         #mask_b = np.minimum(boxes[:, 2], boxes[:, 3]) > 4.2
-        mask_b = np.minimum(boxes[:, 2], boxes[:, 3]) > 3.6
+        mask_b = np.minimum(boxes[:, 2], boxes[:, 3]) > 1
         boxes_t = boxes[mask_b]
         labels_t = labels[mask_b]
 

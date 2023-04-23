@@ -113,12 +113,10 @@ def main(exp, args):
 
 
 if __name__ == "__main__":
-    #os.environ['CUDA_VISIBLE_DEVICES'] = '6, 7'
-    #os.environ['CUDA_VISIBLE_DEVICES'] = '3'
     import sys
-    #os.environ['CUDA_VISIBLE_DEVICES'] = '0, 1'
     cfg = get_cfg(sys.argv[2])
-    os.environ['CUDA_VISIBLE_DEVICES'] = '3, 4, 5, 7'
+    #os.environ['CUDA_VISIBLE_DEVICES'] = '3, 4, 5, 7'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '1, 2'
     args = make_parser().parse_args()
 
     #get configs from config.py

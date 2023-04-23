@@ -243,9 +243,9 @@ def image_demo(predictor, vis_folder, path, current_time, save_result, f, save_a
             obj_conf = outputs[0][k, 4].item()
             cls_conf = outputs[0][k, 5].item()
             cls = outputs[0][k, 6].item()
-            f.write('{:s} {:.3f} {:.1f} {:.1f} {:.1f} {:.1f} {}'.format(image_name, (obj_conf * cls_conf), x0, y0, x1,
-                        y1, int(cls)) + '\n')
-            #f.write('{:s} {:.3f} {:.1f} {:.1f} {:.1f} {:.1f} {}'.format(image_name, obj_conf, x0, y0, x1, y1, cls) + '\n')
+            #f.write('{:s} {:.3f} {:.1f} {:.1f} {:.1f} {:.1f} {}'.format(image_name, (obj_conf * cls_conf), x0, y0, x1,
+            #            y1, int(cls)) + '\n')
+            f.write('{:s} {:.3f} {:.1f} {:.1f} {:.1f} {:.1f} {}'.format(image_name, obj_conf, x0, y0, x1, y1, cls) + '\n')
         if save_result:
             result_image = predictor.visual(outputs[0], img_info, predictor.confthre)
             h, w, _ = result_image.shape
@@ -418,7 +418,7 @@ def main(exp, args, test_data, save_path):
             image_demo(predictor, vis_folder, args.path, current_time,
                     args.save_result, save_txt, save_as_video, vid_writer)
     elif args.demo == "video" or args.demo == "webcam":
-        dir = True
+        dir = False
         if dir:
             video_dir = '/world/data-gpu-94/liyang/shelf_test_imgs/shelf_videos/test_videso'
             video_dir = '/world/data-gpu-94/liyang/shelf_test_imgs/shelf_videos/20220810_test_videos'
@@ -458,6 +458,7 @@ if __name__ == "__main__":
     test_data_path = "/world/data-gpu-94/goods_detection_data/tupu_retrain_data.json"
     #test_data_path = '/world/data-gpu-94/liyang/test.json'
     #test_data_path = "/world/data-gpu-94/goods_detection_data/singleRowShelfData/39-A4FC2-D-1-1.jpg"
+    #test_data_path = '/world/data-gpu-94/goods_detection_data/test.v4_20220301.json'
     #test_data_path = '/world/data-gpu-94/liyang/full_pedestrian/test.json'
     #test_data_path = '/home/liyang/YOLOX/test_images/1.jpg'
     #test_data_path = '/home/liyang/YOLOX/test_images/test_imgs.json'
@@ -474,7 +475,6 @@ if __name__ == "__main__":
     test_data_path = '/world/data-gpu-94/goods_detection_data/badcase/20220804_wtscg.json'
     test_data_path = '/world/data-gpu-94/smart_shelf_data/data_v3/test.v4.json'
     #test_data_path = '/world/data-gpu-94/smart_shelf_data/data_v3/data.v5.json'
-    test_data_path = '/world/data-gpu-94/ped_detection_data/biped.v8.head.mix.shuf.test.json'
     test_data_path = '/world/data-gpu-94/ped_detection_data/bi_headtop/daily_headtop_data/test_data.json'
     test_data_path = '/world/data-gpu-94/smart_shelf_data/data_v4/test.v2.json'
     test_data_path = '/world/data-gpu-94/liyang/shelf_test_imgs/shelf_videos/smart_shelf_videos/20230201_videos/Fps10_302097_imgs.json'
@@ -484,12 +484,18 @@ if __name__ == "__main__":
     test_data_path = '/world/data-gpu-94/liyang/shelf_test_imgs/shelf_videos/smart_shelf_videos/20230201_videos/Fps10_imgs_20230201_02.json'
     test_data_path = '/world/data-gpu-94/liyang/shelf_test_imgs/shelf_videos/smart_shelf_videos/20230201_videos/Fps10_imgs_20230208.json'
     test_data_path = '/world/data-gpu-94/liyang/shelf_test_imgs/shelf_videos/smart_shelf_videos/20230201_videos/Fps10_test_imgs_0208.json'
+    test_data_path = '/world/data-gpu-94/goods_detection_data/zhaoheng_testdata.json'
+    test_data_path = '/world/data-gpu-94/goods_detection_data/test.v4_20220301.json'
+    test_data_path = '/world/data-gpu-94/ped_detection_data/biped.v8.head.mix.shuf.test.json'
+    #test_data_path = '/world/data-gpu-94/liyang/pedDetection/head_detection/badcase/ped3_badcase_frames.json'
+    #test_data_path = '/world/data-gpu-94/liyang/pedDetection/test_data/daily_data/test_badcase.json'
+    #test_data_path = '/world/data-gpu-94/liyang/pedDetection/test_data/daily_data/20230214_test_data.json'
+    #test_data_path = '/world/data-gpu-94/liyang/pedDetection/test_data/daily_data/公司测试场景.json'
     #test_data_path = '/world/data-gpu-94/smart_shelf_data/20220901_data.json'
     #test_data_path = '/world/data-gpu-94/wyq/mobile_video_data/demo2020/hw_ped/ped3/frame_000650.jpg'
     #test_data_path = '/world/data-gpu-94/wyq/mobile_video_data/demo2020/hw_ped/ped3.txt'
     #test_data_path = '/world/data-gpu-94/liyang/misc_projects/star_card_debug.json'
     #test_data_path = '/world/data-gpu-94/goods_detection_data/badcase/20220804_wtscg/test.json'
-    #test_data_path = '/world/data-gpu-94/goods_detection_data/test.v4_20220301.json'
     #test_data_path = '/world/data-gpu-94/star_card/stardata/stardata.txt'
     #test_data_path = '/world/data-gpu-94/star_card/stardata/stardata.shuf.2w.txt'
     #test_data_path = '/world/data-c4/wash/2022-08-09/5eddb86afaf52c4ca704ea41/data.txt'
@@ -514,6 +520,7 @@ if __name__ == "__main__":
     #test_data_path = '/world/data-gpu-94/liyang/aihuishou_train/ahs_url/ahs_test_imgs/ahs_test_imgs.json'   
     #test_data_path = '/world/data-gpu-94/liyang/pedDetection/Bi/dog_cat_test.json'
     args.path = '/world/data-gpu-94/wyq/mobile_video_data/demo2020/hw_ped/ped3.mp4'
+    args.path = '/world/data-gpu-94/liyang/pedDetection/test_data/daily_data/太原钟楼街直营店_1F旗舰机台东北-新_20220923175900_20220923190001.mp4'
     #args.path = '/world/data-gpu-94/wyq/mobile_video_data/demo2020/huigou/pass3.mp4'
     #args.path = '/home/liyang/cfg_yolox/865678.mp4'
     save_txt = open('/home/liyang/cfg_yolox/eval/test_f.txt', 'w')

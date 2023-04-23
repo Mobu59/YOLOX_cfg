@@ -8,5 +8,6 @@ from .yolo_fpn import YOLOFPN
 from .yolo_head import YOLOXHead
 from .yolo_pafpn import YOLOPAFPN
 from .yolox import YOLOX
+from .yolo_neck import YOLOPAFPN
 
 #from .yolox_head_fast import YOLOXHead

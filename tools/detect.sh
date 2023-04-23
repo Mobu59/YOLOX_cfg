@@ -1,12 +1,12 @@
-export CUDA_VISIBLE_DEVICES=6
+export CUDA_VISIBLE_DEVICES=0
 python3 detect.py \
--task hands_goods_det \
+-task head_det_nano \
+--ckpt=/world/data-gpu-94/liyang/cfg_yolox/trained_models/head_det_nano/yolox_all/latest_ckpt.pth \
 --exp_file=/home/liyang/cfg_yolox/exps/default/yolox_all.py \
---ckpt=/world/data-gpu-94/wyq/cfg_yolox/trained_models/hands_goods_det_v3/yolox_all/epoch_16_ckpt.pth \
 --conf=0.35 \
---nms=0.35 \
---save_as_video  
+--nms=0.5 \
 #--save_result  
+#--save_as_video  
 #--demo video \
 #--trt \
 #-task goods_det \

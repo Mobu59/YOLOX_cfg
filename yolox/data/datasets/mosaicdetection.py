@@ -206,7 +206,7 @@ class MosaicDetection(Dataset):
             self._dataset._input_dim = self.input_dim
             img, label, img_info, img_id = self._dataset.pull_item(idx)
             #if random.random() > 0.6:
-            if random.random() > 0.0:
+            if random.random() > 1.0:
             #if random.random() > 1:
                 #img, label = random_affine(
                 #    img,

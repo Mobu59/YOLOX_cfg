@@ -146,8 +146,6 @@ def get_po_faceboxes_augumentation(phase, width=640, height=640, min_area=0.,
     #                    std=(0.5, 0.5, 0.5), p=1),
     #     ToTensor()
     # ])
-    if(phase == 'test'):
-        return albu.Compose(list_transforms)
     return albu.Compose(
             list_transforms,
             bbox_params=albu.BboxParams(
@@ -157,6 +155,78 @@ def get_po_faceboxes_augumentation(phase, width=640, height=640, min_area=0.,
                 label_fields=['category_id']))
 
 
+def get_pedhead_augumentation(phase, width=640, height=640, min_area=0.,
+        min_visibility=0., bbox_format='pascal_voc'):
+    print("<<<<<<<<< using get_pedhead_augumentation")
+    list_transforms = []
+    if phase == 'train':
+        list_transforms.extend([
+            albu.augmentations.transforms.JpegCompression(
+                quality_lower=30, quality_upper=100,
+                always_apply=False, p=0.5),
+            albu.augmentations.transforms.RandomScale(
+                scale_limit=0.5, p=0.5),
+            albu.PadIfNeeded(min_height=height,
+                             min_width=width,
+                             always_apply=True, border_mode=cv2.BORDER_CONSTANT,
+                             value=[0, 0, 0]),
+            albu.augmentations.transforms.SmallestMaxSize(
+                max_size=width, always_apply=True),
+            albu.augmentations.transforms.RandomCrop(
+                height=height,
+                width=width, p=1.0),
+            # albu.augmentations.transforms.RandomResizedCrop(
+            #     height=height,
+            #     width=width, p=1.0),
+            #albu.augmentations.transforms.Rotate(
+            #    limit=20, interpolation=1, border_mode=cv2.BORDER_CONSTANT,
+            #    value=[0, 0, 0],
+            #    mask_value=[0, 0, 0], always_apply=False, p=0.7),
+            # # albu.augmentations.transforms.Flip(),
+            # # albu.augmentations.transforms.Transpose(),
+            albu.OneOf([
+                albu.RandomBrightnessContrast(brightness_limit=0.2,
+                                              contrast_limit=0.2),
+                # albu.RandomGamma(gamma_limit=(50, 150)),
+                albu.NoOp()
+            ]),
+            # albu.augmentations.transforms.Blur(blur_limit=14, p=0.5),
+            albu.OneOf([
+                albu.RGBShift(r_shift_limit=5, b_shift_limit=5,
+                              g_shift_limit=5),
+                albu.HueSaturationValue(hue_shift_limit=10,
+                                        sat_shift_limit=10),
+                albu.NoOp()
+            ]),
+            albu.OneOf([
+                albu.IAAAdditiveGaussianNoise(),
+                albu.GaussNoise(),
+            ], p=0.2),
+            albu.augmentations.transforms.ToGray(always_apply=False, p=0.1),
+            albu.HorizontalFlip(p=0.15),
+            albu.augmentations.transforms.Cutout(num_holes=12, max_h_size=8, max_w_size=8, fill_value=0),
+            albu.OneOf([
+                albu.CLAHE(clip_limit=2),
+                albu.IAASharpen(),
+                albu.IAAEmboss(),
+            ], p=0.2),
+        ])
+    if(phase == 'test'):
+        list_transforms.extend([
+            albu.Resize(height=height, width=width)
+        ])
+    # list_transforms.extend([
+    #     albu.Normalize(mean=(0.5, 0.5, 0.5),
+    #                    std=(0.5, 0.5, 0.5), p=1),
+    #     ToTensor()
+    # ])
+    return albu.Compose(
+            list_transforms,
+            bbox_params=albu.BboxParams(
+                format=bbox_format,
+                min_area=min_area,
+                min_visibility=min_visibility,
+                label_fields=['category_id']))
 class TPDataset(Dataset):
     def __init__(
         self,
@@ -170,12 +240,18 @@ class TPDataset(Dataset):
         super().__init__(img_size)
         self.root = data_dir
         self.img_size = img_size
-        aug = get_po_faceboxes_augumentation(
+        #aug = get_po_faceboxes_augumentation(
+        #        'train',
+        #        width=img_size[0], height=img_size[1],
+        #        min_area=100., min_visibility=0.7,
+        #        bbox_format='pascal_voc') 
+        aug = get_pedhead_augumentation(
                 'train',
                 width=img_size[0], height=img_size[1],
-                min_area=100., min_visibility=0.7,
-                bbox_format='pascal_voc')
+                min_area=0., min_visibility=0.8,
+                bbox_format='pascal_voc') 
         self.preproc = aug
+        #self.preproc = None
         self.target_transform = target_transform
         self.name = dataset_name
         self._classes = VOC_CLASSES 
@@ -236,7 +312,7 @@ class TPDataset(Dataset):
             bbox_index = np.array(bbox_index, dtype=np.int8).reshape((len(bbox_index),))
             anno = {'image': img, 'bboxes': target[:, :4], 'category_id': target[:, 4]}
             try:
-                t = self.preproc(**anno)
+                t, _ = self.preproc(**anno)
                 if (len(t['bboxes']) == 0):
                     aug_target.append([0, 0, 0, 0, 0])
                 else:
@@ -437,17 +513,7 @@ class TPDataset(Dataset):
         viss = []
         img = cv2.imread(k, cv2.IMREAD_COLOR)
         if img is None:
-            print("path is ", k)
-        #if "RPC" in k:
-        #    img = motion_blur(img)
-        date = k.split("/")[-2]
-        #if "smart_shelf_data" in k and "0715" not in date and "2019" not in date:
-        #    h, w, _ = img.shape
-        #    img[0:int(h*0.38), 0:w] = fill_value
-        #if "20220715" in date:
-        #    h, w, _ = img.shape
-        #    img[0:int(h*0.455), 0:w] = fill_value
-        ori_img = img.copy()
+            print("img path {} does not exist or is not accessible".format(k))
         h, w, _ = img.shape
         for face_info in info:
             xmin = max(0, face_info['xmin'])
@@ -455,9 +521,6 @@ class TPDataset(Dataset):
             ymin = max(0, face_info['ymin'])
             ymax = min(h, face_info['ymax'])
             name = face_info['name']
-            #由于调整了摄像头，导致比例不一定适配所有的图片，会有把标签框一起遮盖了的情况
-            #if "20220715_0729" in date and ymin <= int(h * 0.455):
-            #    continue
             #if xmin > w or ymin > h or xmax < 0 or ymax < 0 or int(name) == 1:
             if xmin > w or ymin > h or xmax > w or ymax > h or xmax < 0 or ymax < 0 or xmax - xmin <= 0 or ymax - ymin <= 0:
                 #print(k, face_info)
@@ -492,44 +555,9 @@ class TPDataset(Dataset):
         # r = min(self.img_size[0] / h, self.img_size[1] / w)
         if len(res) == 0:
             return None, None
-        #if cfg["task_name"] == "hands_goods_det":
-        #    prob = np.random.random()
-        #    if prob > 0.4:
-        #        idx_ = np.random.randint(0, len(self.ids)) 
-        #        k_, info_ = self.ids[idx_]
-        #        if "RPC" not in k_:
-        #            img_ = cv2.imread(k_, cv2.IMREAD_COLOR)
-        #            label = []
-        #            h_, w_, _ = img_.shape
-        #            for i in info_:
-        #                xmin = max(0, i['xmin'])
-        #                xmax = min(w_, i['xmax'])
-        #                ymin = max(0, i['ymin'])
-        #                ymax = min(h_, i['ymax'])
-        #                name = i['name']
-        #                label.append([xmin, ymin, xmax, ymax, name])
-        #            if label == [[0, 0, 0, 0, 0]]:    
-        #                img = ori_img
-        #                res = res
-        #            else:    
-        #                if len(label) > 1:
-        #                    random_id = np.random.randint(0, len(label))
-        #                    main_label = np.array(label[random_id])
-        #                else:
-        #                    main_label = np.array(label[0])
-        #                new_img, box, save = copy_paste(img_, img, main_label, np.array(res))    
-        #                if save:
-        #                    img = new_img
-        #                    res = box
-        #                else:
-        #                    img = ori_img
-        #                    res = res
-        #        else:
-        #            img = ori_img
-        #            res = res
 
         if cfg["task_name"] == "goods_det":    
-            prob = np.random.randint(0, 3)
+            prob = np.random.randint(0, 4)
             #随机涂抹黑框
             if prob == 1:
                 if len(res) >= 10:
